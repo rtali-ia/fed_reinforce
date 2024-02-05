@@ -6,7 +6,10 @@ import seaborn as sns
 from environment import VectorizedEnvWrapper
 from reinforcement_learning_policies import CategoricalPolicy, DiagonalGaussianPolicy
 from REINFORCE_client import REINFORCE_client
-from geom_median.torch import compute_geometric_median  
+from geom_median.torch import compute_geometric_median
+
+#Connect to GPU
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def main():
@@ -15,25 +18,30 @@ def main():
     N = env.observation_space.shape[0]
     M = env.action_space.n
 
-    # Create the global model
+    # Create the global model - In GPU
     global_model = torch.nn.Sequential(
                 torch.nn.Linear(N, M),
             ).double()
-    global_dict = global_model.state_dict()
+    
+    global_dict = global_model.state_dict() #In GPU
+    
     # Copy the global model to create client models
-    client_models = [CategoricalPolicy(env, lr=1e-1) for _ in range(10)]
+    client_models = [CategoricalPolicy(env, device, lr=1e-1) for _ in range(10)] #These are in GPU
+    
     for model in client_models:
-        model.p.load_state_dict(global_model.state_dict())
+        model.p.load_state_dict(global_model.state_dict()) #In GPU
 
     # Training loop
+    
     epoch_rewards = []
+    
     for epoch in range(100):
         gradients, rewards = [], []
 
         # Collect gradients and rewards from each client
         for client_model in client_models:
-            grad, reward = REINFORCE_client(env, client_model)
-            gradients.append(grad)
+            grad, reward = REINFORCE_client(env, client_model, device) #Need to make sure the gradient and reward vectors are in CPU.
+            gradients.append(grad) #In CPU
             rewards.append(reward)
 
         # Attack: Sign-flipping
@@ -45,7 +53,7 @@ def main():
         # Compute geometric median of gradients
         median_gradient = compute_geometric_median(gradients, weights=None)
 
-        # Update global model
+        # Update global model - This is still in GPU
         i=0
         for k in global_dict.keys():
             global_dict[k] = median_gradient.median[i]

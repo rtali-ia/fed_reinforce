@@ -20,6 +20,8 @@ class VectorizedEnvWrapper(gym.Wrapper):
         Return and reset each environment
         '''
         return np.asarray([env.reset() for env in self.envs])
+        
+        return self.envs 
 
     def step(self, actions):
         '''
