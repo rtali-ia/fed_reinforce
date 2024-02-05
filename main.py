@@ -7,14 +7,16 @@ from environment import VectorizedEnvWrapper
 from reinforcement_learning_policies import CategoricalPolicy, DiagonalGaussianPolicy
 from REINFORCE_client import REINFORCE_client
 from geom_median.torch import compute_geometric_median
+import time
+import sys
 
-#Connect to GPU
+#Connect to GPU if available else run on CPU
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def main():
+def main(env_name = "CartPole-v1", n_envs = 32, ifPrint = False):
     # Initialize the environment
-    env = VectorizedEnvWrapper(gym.make("CartPole-v1"), num_envs=32)
+    env = VectorizedEnvWrapper(gym.make(env_name), num_envs=n_envs)
     N = env.observation_space.shape[0]
     M = env.action_space.n
 
@@ -66,8 +68,9 @@ def main():
             model.p.load_state_dict(global_model.state_dict())
 
         # Print model parameters for verification
-        for key in global_model.state_dict():
-            print(key, global_model.state_dict()[key])
+        if ifPrint:
+            for key in global_model.state_dict():
+                print(key, global_model.state_dict()[key])
 
         # Store average reward
         epoch_rewards.append(sum(rewards) / len(rewards))
@@ -78,4 +81,27 @@ def main():
     fig_1.savefig("out.png")
 
 if __name__ == "__main__":
-    main()
+    
+    if torch.cuda.is_available():
+        print("Training on your primary GPU")
+        print("\nAt this moment we can use only a single GPU, the primary GPU for this trainig is: ", torch.cuda.get_device_name(0))
+    else:
+        print("Training on CPU")
+    
+    start_time = time.time()
+    
+    if len(sys.argv) == 4:
+        print("\nEnvironment: ", sys.argv[1])
+        print("\nNumber of Environments: ", sys.argv[2])
+        print("\nIf you want to print the model parameters: ", sys.argv[3])
+        
+        main(sys.argv[1], int(sys.argv[2]), bool(sys.argv[3]))
+        
+    else:
+        print("\nPlease provide the environment name, number of environments and ifPrint as arguments")
+        print("\nExample: python main.py CartPole-v1 32 False")
+        print("\nWe are using the default values: CartPole-v1, 32, False")
+        main()
+        
+    print("\n--- Total Run Time for GMFedReinforce = %s seconds ---" % (time.time() - start_time))
+    print('\nAll Done!')

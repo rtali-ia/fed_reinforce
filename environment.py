@@ -1,4 +1,3 @@
-
 import copy
 from copy import deepcopy
 import numpy as np
@@ -21,7 +20,6 @@ class VectorizedEnvWrapper(gym.Wrapper):
         '''
         return np.asarray([env.reset() for env in self.envs])
         
-        return self.envs 
 
     def step(self, actions):
         '''
